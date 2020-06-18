@@ -1,61 +1,48 @@
-NAME=blake3
-CC=gcc
-CFLAGS=-O3 -Wall -Wextra -std=c11 -pedantic
-TARGETS=
-ASM_TARGETS=
-EXTRAFLAGS=
+.POSIX:
 
-ifdef BLAKE3_NO_SSE41
-EXTRAFLAGS += -DBLAKE3_NO_SSE41
-else
-TARGETS += blake3_sse41.o
-ASM_TARGETS += blake3_sse41_x86-64_unix.S
-endif
+PREFIX?=/usr/local
+BINDIR?=$(PREFIX)/bin
+LIBDIR?=$(PREFIX)/lib
+INCDIR?=$(PREFIX)/include
+CFLAGS+=-Wall -Wpedantic -pthread
+LDFLAGS+=-pthread
+ARFLAGS=cr
 
-ifdef BLAKE3_NO_AVX2
-EXTRAFLAGS += -DBLAKE3_NO_AVX2
-else
-TARGETS += blake3_avx2.o
-ASM_TARGETS += blake3_avx2_x86-64_unix.S
-endif
+BLAKE3_OBJ=\
+	blake3.o\
+	blake3_dispatch.o\
+	blake3_portable.o\
+	blake3_cpuid.o\
+	blake3_avx2_x86-64_unix.o\
+	blake3_avx512_x86-64_unix.o\
+	blake3_sse41_x86-64_unix.o
 
-ifdef BLAKE3_NO_AVX512
-EXTRAFLAGS += -DBLAKE3_NO_AVX512
-else
-TARGETS += blake3_avx512.o
-ASM_TARGETS += blake3_avx512_x86-64_unix.S
-endif
+.PHONY: all
+all: b3sum libblake3.a
 
-ifdef BLAKE3_USE_NEON
-EXTRAFLAGS += -DBLAKE3_USE_NEON
-TARGETS += blake3_neon.o
-endif
+.c.o:
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-all: blake3.c blake3_dispatch.c blake3_portable.c main.c $(TARGETS)
-	$(CC) $(CFLAGS) $(EXTRAFLAGS) $^ -o $(NAME)
+.S.o:
+	$(CC) $(CPPFLAGS) $(ASFLAGS) -c -o $@ $<
 
-blake3_sse41.o: blake3_sse41.c
-	$(CC) $(CFLAGS) $(EXTRAFLAGS) -c $^ -o $@ -msse4.1
+libblake3.a: $(BLAKE3_OBJ)
+	$(AR) $(ARFLAGS) $@ $(BLAKE3_OBJ)
 
-blake3_avx2.o: blake3_avx2.c
-	$(CC) $(CFLAGS) $(EXTRAFLAGS) -c $^ -o $@ -mavx2
+b3sum: b3sum.o libblake3.a
+	$(CC) $(LDFLAGS) -o $@ b3sum.o libblake3.a
 
-blake3_avx512.o: blake3_avx512.c
-	$(CC) $(CFLAGS) $(EXTRAFLAGS) -c $^ -o $@ -mavx512f -mavx512vl
+.PHONY: install
+install: b3sum libblake3.a
+	mkdir -p $(DESTDIR)$(BINDIR) $(DESTDIR)$(LIBDIR) $(DESTDIR)$(INCDIR)
+	cp b3sum $(DESTDIR)$(BINDIR)
+	cp libblake3.a $(DESTDIR)$(LIBDIR)
+	cp blake3.h $(DESTDIR)$(INCDIR)
 
-blake3_neon.o: blake3_neon.c
-	$(CC) $(CFLAGS) $(EXTRAFLAGS) -c $^ -o $@
-
-test: CFLAGS += -DBLAKE3_TESTING -fsanitize=address,undefined
-test: all
+.PHONY: check
+check: b3sum
 	./test.py
 
-asm: blake3.c blake3_dispatch.c blake3_portable.c main.c $(ASM_TARGETS)
-	$(CC) $(CFLAGS) $(EXTRAFLAGS) $^ -o $(NAME)
-
-test_asm: CFLAGS += -DBLAKE3_TESTING -fsanitize=address,undefined
-test_asm: asm
-	./test.py
-
-clean: 
-	rm -f $(NAME) *.o
+.PHONY: clean
+clean:
+	rm -f b3sum b3sum.o libblake3.a $(BLAKE3_OBJ)
