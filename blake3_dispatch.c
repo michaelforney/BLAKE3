@@ -5,9 +5,61 @@
 
 #include "blake3_impl.h"
 
+// Declarations for implementation-specific functions.
+void blake3_compress_in_place_portable(uint32_t cv[8],
+                                       const uint8_t block[BLAKE3_BLOCK_LEN],
+                                       uint8_t block_len, uint64_t counter,
+                                       uint8_t flags);
+
+void blake3_compress_xof_portable(const uint32_t cv[8],
+                                  const uint8_t block[BLAKE3_BLOCK_LEN],
+                                  uint8_t block_len, uint64_t counter,
+                                  uint8_t flags, uint8_t out[64]);
+
+void blake3_hash_many_portable(const uint8_t *const *inputs, size_t num_inputs,
+                               size_t blocks, const uint32_t key[8],
+                               uint64_t counter, bool increment_counter,
+                               uint8_t flags, uint8_t flags_start,
+                               uint8_t flags_end, uint8_t *out);
+
 #if defined(__x86_64__)
 void blake3_cpuid(uint32_t out[4], uint32_t id, uint32_t sid);
 uint64_t blake3_xgetbv(void);
+
+void blake3_compress_in_place_sse41(uint32_t cv[8],
+                                    const uint8_t block[BLAKE3_BLOCK_LEN],
+                                    uint8_t block_len, uint64_t counter,
+                                    uint8_t flags);
+void blake3_compress_xof_sse41(const uint32_t cv[8],
+                               const uint8_t block[BLAKE3_BLOCK_LEN],
+                               uint8_t block_len, uint64_t counter,
+                               uint8_t flags, uint8_t out[64]);
+void blake3_hash_many_sse41(const uint8_t *const *inputs, size_t num_inputs,
+                            size_t blocks, const uint32_t key[8],
+                            uint64_t counter, bool increment_counter,
+                            uint8_t flags, uint8_t flags_start,
+                            uint8_t flags_end, uint8_t *out);
+
+void blake3_hash_many_avx2(const uint8_t *const *inputs, size_t num_inputs,
+                           size_t blocks, const uint32_t key[8],
+                           uint64_t counter, bool increment_counter,
+                           uint8_t flags, uint8_t flags_start,
+                           uint8_t flags_end, uint8_t *out);
+void blake3_compress_in_place_avx512(uint32_t cv[8],
+                                     const uint8_t block[BLAKE3_BLOCK_LEN],
+                                     uint8_t block_len, uint64_t counter,
+                                     uint8_t flags);
+
+void blake3_compress_xof_avx512(const uint32_t cv[8],
+                                const uint8_t block[BLAKE3_BLOCK_LEN],
+                                uint8_t block_len, uint64_t counter,
+                                uint8_t flags, uint8_t out[64]);
+
+void blake3_hash_many_avx512(const uint8_t *const *inputs, size_t num_inputs,
+                             size_t blocks, const uint32_t key[8],
+                             uint64_t counter, bool increment_counter,
+                             uint8_t flags, uint8_t flags_start,
+                             uint8_t flags_end, uint8_t *out);
 #endif
 
 enum cpu_feature {

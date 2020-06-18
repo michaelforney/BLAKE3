@@ -5,6 +5,27 @@
 #include "blake3.h"
 #include "blake3_impl.h"
 
+#if defined(__x86_64__)
+#define MAX_SIMD_DEGREE 16
+#else
+#define MAX_SIMD_DEGREE 1
+#endif
+
+// There are some places where we want a static size that's equal to the
+// MAX_SIMD_DEGREE, but also at least 2.
+#define MAX_SIMD_DEGREE_OR_2 (MAX_SIMD_DEGREE > 2 ? MAX_SIMD_DEGREE : 2)
+
+// internal flags
+enum blake3_flags {
+  CHUNK_START         = 1 << 0,
+  CHUNK_END           = 1 << 1,
+  PARENT              = 1 << 2,
+  ROOT                = 1 << 3,
+  KEYED_HASH          = 1 << 4,
+  DERIVE_KEY_CONTEXT  = 1 << 5,
+  DERIVE_KEY_MATERIAL = 1 << 6,
+};
+
 INLINE void chunk_state_init(blake3_chunk_state *self, const uint32_t key[8],
                              uint8_t flags) {
   memcpy(self->cv, key, BLAKE3_KEY_LEN);
@@ -147,6 +168,29 @@ INLINE output_t chunk_state_output(const blake3_chunk_state *self) {
 INLINE output_t parent_output(const uint8_t block[BLAKE3_BLOCK_LEN],
                               const uint32_t key[8], uint8_t flags) {
   return make_output(key, block, BLAKE3_BLOCK_LEN, 0, flags | PARENT);
+}
+
+/* Find index of the highest set bit */
+/* x is assumed to be nonzero.       */
+static unsigned int highest_one(uint64_t x) {
+#if defined(__GNUC__) || defined(__clang__)
+  return 63 ^ __builtin_clzll(x);
+#else
+  unsigned int c = 0;
+  if(x & 0xffffffff00000000ULL) { x >>= 32; c += 32; }
+  if(x & 0x00000000ffff0000ULL) { x >>= 16; c += 16; }
+  if(x & 0x000000000000ff00ULL) { x >>=  8; c +=  8; }
+  if(x & 0x00000000000000f0ULL) { x >>=  4; c +=  4; }
+  if(x & 0x000000000000000cULL) { x >>=  2; c +=  2; }
+  if(x & 0x0000000000000002ULL) {           c +=  1; }
+  return c;
+#endif
+}
+
+// Largest power of two less than or equal to x. As a special case, returns 1
+// when x is 0.
+INLINE uint64_t round_down_to_power_of_2(uint64_t x) {
+  return 1ULL << highest_one(x | 1);
 }
 
 // Given some input larger than one chunk, return the number of bytes that
@@ -354,6 +398,18 @@ INLINE void hasher_init_base(blake3_hasher *self, const uint32_t key[8],
 
 void blake3_hasher_init(blake3_hasher *self) { hasher_init_base(self, IV, 0); }
 
+INLINE void load_key_words(const uint8_t key[BLAKE3_KEY_LEN],
+                           uint32_t key_words[8]) {
+  key_words[0] = load32(&key[0 * 4]);
+  key_words[1] = load32(&key[1 * 4]);
+  key_words[2] = load32(&key[2 * 4]);
+  key_words[3] = load32(&key[3 * 4]);
+  key_words[4] = load32(&key[4 * 4]);
+  key_words[5] = load32(&key[5 * 4]);
+  key_words[6] = load32(&key[6 * 4]);
+  key_words[7] = load32(&key[7 * 4]);
+}
+
 void blake3_hasher_init_keyed(blake3_hasher *self,
                               const uint8_t key[BLAKE3_KEY_LEN]) {
   uint32_t key_words[8];
@@ -370,6 +426,20 @@ void blake3_hasher_init_derive_key(blake3_hasher *self, const char *context) {
   uint32_t context_key_words[8];
   load_key_words(context_key, context_key_words);
   hasher_init_base(self, context_key_words, DERIVE_KEY_MATERIAL);
+}
+
+// Count the number of 1 bits.
+INLINE unsigned int popcnt(uint64_t x) {
+#if defined(__GNUC__) || defined(__clang__)
+  return __builtin_popcountll(x);
+#else
+  unsigned int count = 0;
+  while (x != 0) {
+    count += 1;
+    x &= x - 1;
+  }
+  return count;
+#endif
 }
 
 // As described in hasher_push_cv() below, we do "lazy merging", delaying
