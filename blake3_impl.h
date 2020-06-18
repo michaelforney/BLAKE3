@@ -122,12 +122,6 @@ INLINE uint64_t round_down_to_power_of_2(uint64_t x) {
   return 1ULL << highest_one(x | 1);
 }
 
-INLINE uint32_t counter_low(uint64_t counter) { return (uint32_t)counter; }
-
-INLINE uint32_t counter_high(uint64_t counter) {
-  return (uint32_t)(counter >> 32);
-}
-
 INLINE uint32_t load32(const void *src) {
   const uint8_t *p = (const uint8_t *)src;
   return ((uint32_t)(p[0]) << 0) | ((uint32_t)(p[1]) << 8) |

@@ -75,8 +75,8 @@ INLINE void compress_pre(uint32_t state[16], const uint32_t cv[8],
   state[9] = IV[1];
   state[10] = IV[2];
   state[11] = IV[3];
-  state[12] = counter_low(counter);
-  state[13] = counter_high(counter);
+  state[12] = counter;
+  state[13] = counter >> 32;
   state[14] = (uint32_t)block_len;
   state[15] = (uint32_t)flags;
 
