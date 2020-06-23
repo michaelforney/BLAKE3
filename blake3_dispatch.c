@@ -21,7 +21,7 @@ void blake3_hash_many_portable(const uint8_t *const *inputs, size_t num_inputs,
                                uint8_t flags, uint8_t flags_start,
                                uint8_t flags_end, uint8_t *out);
 
-#if defined(__x86_64__)
+#if defined(WITH_ASM) && defined(__x86_64__)
 void blake3_compress_in_place_sse41(uint32_t cv[8],
                                     const uint8_t block[BLAKE3_BLOCK_LEN],
                                     uint8_t block_len, uint64_t counter,
@@ -56,7 +56,6 @@ void blake3_hash_many_avx512(const uint8_t *const *inputs, size_t num_inputs,
                              uint64_t counter, bool increment_counter,
                              uint8_t flags, uint8_t flags_start,
                              uint8_t flags_end, uint8_t *out);
-#endif
 
 enum {
 	SSE41  = 1 << 0,
@@ -65,12 +64,13 @@ enum {
 };
 
 extern int blake3_cpu_features;
+#endif
 
 void blake3_compress_in_place(uint32_t cv[8],
                               const uint8_t block[BLAKE3_BLOCK_LEN],
                               uint8_t block_len, uint64_t counter,
                               uint8_t flags) {
-#if defined(__x86_64__)
+#if defined(WITH_ASM) && defined(__x86_64__)
   if (blake3_cpu_features & AVX512) {
     blake3_compress_in_place_avx512(cv, block, block_len, counter, flags);
     return;
@@ -87,7 +87,7 @@ void blake3_compress_xof(const uint32_t cv[8],
                          const uint8_t block[BLAKE3_BLOCK_LEN],
                          uint8_t block_len, uint64_t counter, uint8_t flags,
                          uint8_t out[64]) {
-#if defined(__x86_64__)
+#if defined(WITH_ASM) && defined(__x86_64__)
   if (blake3_cpu_features & AVX512) {
     blake3_compress_xof_avx512(cv, block, block_len, counter, flags, out);
     return;
@@ -104,7 +104,7 @@ void blake3_hash_many(const uint8_t *const *inputs, size_t num_inputs,
                       size_t blocks, const uint32_t key[8], uint64_t counter,
                       bool increment_counter, uint8_t flags,
                       uint8_t flags_start, uint8_t flags_end, uint8_t *out) {
-#if defined(__x86_64__)
+#if defined(WITH_ASM) && defined(__x86_64__)
   if (blake3_cpu_features & AVX512) {
     blake3_hash_many_avx512(inputs, num_inputs, blocks, key, counter,
                             increment_counter, flags, flags_start, flags_end,
@@ -132,7 +132,7 @@ void blake3_hash_many(const uint8_t *const *inputs, size_t num_inputs,
 
 // The dynamically detected SIMD degree of the current platform.
 size_t blake3_simd_degree(void) {
-#if defined(__x86_64__)
+#if defined(WITH_ASM) && defined(__x86_64__)
   if (blake3_cpu_features & AVX512)
     return 16;
   if (blake3_cpu_features & AVX2)

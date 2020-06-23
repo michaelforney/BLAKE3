@@ -1,16 +1,24 @@
 .POSIX:
 
+WITH_ASM=1
+
 PREFIX?=/usr/local
 BINDIR?=$(PREFIX)/bin
 LIBDIR?=$(PREFIX)/lib
 INCDIR?=$(PREFIX)/include
-CFLAGS+=-Wall -Wpedantic
 ARFLAGS=cr
+
+-include config.mk
+
+CFLAGS-$(WITH_ASM)=-D WITH_ASM
+CFLAGS+=-Wall -Wpedantic $(CFLAGS-1)
 
 BLAKE3_OBJ=\
 	blake3.o\
 	blake3_dispatch.o\
 	blake3_portable.o\
+	$(BLAKE3_OBJ-1)
+BLAKE3_OBJ-$(WITH_ASM)=\
 	blake3_cpu_features.o\
 	blake3_avx2_x86-64_unix.o\
 	blake3_avx512_x86-64_unix.o\
