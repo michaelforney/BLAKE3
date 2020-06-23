@@ -65,7 +65,7 @@ detect_cpu_features:
 	pop	%rbx
 	ret
 
-.section .ctors,"a"
+.section .ctors,"aw"
 .align	8
 .quad	detect_cpu_features
 
