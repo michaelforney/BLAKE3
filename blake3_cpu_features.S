@@ -24,15 +24,15 @@ detect_cpu_features:
 	mov	%esi, %ecx
 	or	$2, %ecx
 	mov	%eax, %edx
-	and	$6, %edx
-	cmp	$6, %edx
+	and	$0x06, %edx
+	cmp	$0x06, %edx
 	cmove	%ecx, %esi
 
 	// AVX512 usable
 	mov	%esi, %ecx
 	or	$4, %ecx
-	and	$230, %eax
-	cmp	$230, %eax
+	and	$0xe6, %eax
+	cmp	$0xe6, %eax
 	cmove	%ecx, %esi
 
 .L1:
