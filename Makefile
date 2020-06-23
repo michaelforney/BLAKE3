@@ -4,15 +4,14 @@ PREFIX?=/usr/local
 BINDIR?=$(PREFIX)/bin
 LIBDIR?=$(PREFIX)/lib
 INCDIR?=$(PREFIX)/include
-CFLAGS+=-Wall -Wpedantic -pthread
-LDFLAGS+=-pthread
+CFLAGS+=-Wall -Wpedantic
 ARFLAGS=cr
 
 BLAKE3_OBJ=\
 	blake3.o\
 	blake3_dispatch.o\
 	blake3_portable.o\
-	blake3_cpuid.o\
+	blake3_cpu_features.o\
 	blake3_avx2_x86-64_unix.o\
 	blake3_avx512_x86-64_unix.o\
 	blake3_sse41_x86-64_unix.o
