@@ -22,6 +22,7 @@ BLAKE3_OBJ-$(WITH_ASM)=\
 	blake3_cpuid.o\
 	blake3_avx2_x86-64_unix.o\
 	blake3_avx512_x86-64_unix.o\
+	blake3_sse2_x86-64_unix.o\
 	blake3_sse41_x86-64_unix.o
 
 .PHONY: all

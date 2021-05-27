@@ -11,14 +11,6 @@ static const uint8_t MSG_SCHEDULE[7][16] = {
     {11, 15, 5, 0, 1, 9, 8, 6, 14, 10, 2, 12, 3, 4, 7, 13},
 };
 
-INLINE void store32(void *dst, uint32_t w) {
-  uint8_t *p = (uint8_t *)dst;
-  p[0] = (uint8_t)(w >> 0);
-  p[1] = (uint8_t)(w >> 8);
-  p[2] = (uint8_t)(w >> 16);
-  p[3] = (uint8_t)(w >> 24);
-}
-
 INLINE uint32_t rotr32(uint32_t w, uint32_t c) {
   return (w >> c) | (w << (32 - c));
 }
@@ -157,7 +149,7 @@ INLINE void hash_one_portable(const uint8_t *input, size_t blocks,
     blocks -= 1;
     block_flags = flags;
   }
-  memcpy(out, cv, 32);
+  store_cv_words(out, cv);
 }
 
 void blake3_hash_many_portable(const uint8_t *const *inputs, size_t num_inputs,

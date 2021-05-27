@@ -25,6 +25,20 @@ void blake3_hash_many_portable(const uint8_t *const *inputs, size_t num_inputs,
 void blake3_cpuid(uint32_t out[4], uint32_t id, uint32_t sid);
 uint64_t blake3_xgetbv(void);
 
+void blake3_compress_in_place_sse2(uint32_t cv[8],
+                                   const uint8_t block[BLAKE3_BLOCK_LEN],
+                                   uint8_t block_len, uint64_t counter,
+                                   uint8_t flags);
+void blake3_compress_xof_sse2(const uint32_t cv[8],
+                              const uint8_t block[BLAKE3_BLOCK_LEN],
+                              uint8_t block_len, uint64_t counter,
+                              uint8_t flags, uint8_t out[64]);
+void blake3_hash_many_sse2(const uint8_t *const *inputs, size_t num_inputs,
+                           size_t blocks, const uint32_t key[8],
+                           uint64_t counter, bool increment_counter,
+                           uint8_t flags, uint8_t flags_start,
+                           uint8_t flags_end, uint8_t *out);
+
 void blake3_compress_in_place_sse41(uint32_t cv[8],
                                     const uint8_t block[BLAKE3_BLOCK_LEN],
                                     uint8_t block_len, uint64_t counter,
@@ -44,16 +58,15 @@ void blake3_hash_many_avx2(const uint8_t *const *inputs, size_t num_inputs,
                            uint64_t counter, bool increment_counter,
                            uint8_t flags, uint8_t flags_start,
                            uint8_t flags_end, uint8_t *out);
+
 void blake3_compress_in_place_avx512(uint32_t cv[8],
                                      const uint8_t block[BLAKE3_BLOCK_LEN],
                                      uint8_t block_len, uint64_t counter,
                                      uint8_t flags);
-
 void blake3_compress_xof_avx512(const uint32_t cv[8],
                                 const uint8_t block[BLAKE3_BLOCK_LEN],
                                 uint8_t block_len, uint64_t counter,
                                 uint8_t flags, uint8_t out[64]);
-
 void blake3_hash_many_avx512(const uint8_t *const *inputs, size_t num_inputs,
                              size_t blocks, const uint32_t key[8],
                              uint64_t counter, bool increment_counter,
@@ -61,9 +74,10 @@ void blake3_hash_many_avx512(const uint8_t *const *inputs, size_t num_inputs,
                              uint8_t flags_end, uint8_t *out);
 
 enum {
-  SSE41  = 1 << 0,
-  AVX2   = 1 << 1,
-  AVX512 = 1 << 2,
+  SSE2   = 1 << 0,
+  SSE41  = 1 << 1,
+  AVX2   = 1 << 2,
+  AVX512 = 1 << 3,
 };
 
 int blake3_cpu_features;
@@ -75,6 +89,8 @@ void blake3_detect_cpu_features(void) {
   int features = 0;
 
   blake3_cpuid(regs, 1, 0);
+  if (regs[EDX] & (1UL << 26))
+    features |= SSE2;
   if (regs[ECX] & (1UL << 19))
     features |= SSE41;
   // OSXSAVE
@@ -109,6 +125,10 @@ void blake3_compress_in_place(uint32_t cv[8],
     blake3_compress_in_place_sse41(cv, block, block_len, counter, flags);
     return;
   }
+  if (blake3_cpu_features & SSE2) {
+    blake3_compress_in_place_sse2(cv, block, block_len, counter, flags);
+    return;
+  }
 #endif
   blake3_compress_in_place_portable(cv, block, block_len, counter, flags);
 }
@@ -124,6 +144,10 @@ void blake3_compress_xof(const uint32_t cv[8],
   }
   if (blake3_cpu_features & SSE41) {
     blake3_compress_xof_sse41(cv, block, block_len, counter, flags, out);
+    return;
+  }
+  if (blake3_cpu_features & SSE2) {
+    blake3_compress_xof_sse2(cv, block, block_len, counter, flags, out);
     return;
   }
 #endif
@@ -153,6 +177,12 @@ void blake3_hash_many(const uint8_t *const *inputs, size_t num_inputs,
                            out);
     return;
   }
+  if (blake3_cpu_features & SSE2) {
+    blake3_hash_many_sse2(inputs, num_inputs, blocks, key, counter,
+                          increment_counter, flags, flags_start, flags_end,
+                          out);
+    return;
+  }
 #endif
 
   blake3_hash_many_portable(inputs, num_inputs, blocks, key, counter,
@@ -168,6 +198,8 @@ size_t blake3_simd_degree(void) {
   if (blake3_cpu_features & AVX2)
     return 8;
   if (blake3_cpu_features & SSE41)
+    return 4;
+  if (blake3_cpu_features & SSE2)
     return 4;
 #endif
   return 1;
