@@ -22,6 +22,9 @@ void blake3_hash_many_portable(const uint8_t *const *inputs, size_t num_inputs,
                                uint8_t flags_end, uint8_t *out);
 
 #if defined(WITH_ASM) && defined(__x86_64__)
+void blake3_cpuid(uint32_t out[4], uint32_t id, uint32_t sid);
+uint64_t blake3_xgetbv(void);
+
 void blake3_compress_in_place_sse41(uint32_t cv[8],
                                     const uint8_t block[BLAKE3_BLOCK_LEN],
                                     uint8_t block_len, uint64_t counter,
@@ -58,12 +61,39 @@ void blake3_hash_many_avx512(const uint8_t *const *inputs, size_t num_inputs,
                              uint8_t flags_end, uint8_t *out);
 
 enum {
-	SSE41  = 1 << 0,
-	AVX2   = 1 << 1,
-	AVX512 = 1 << 2,
+  SSE41  = 1 << 0,
+  AVX2   = 1 << 1,
+  AVX512 = 1 << 2,
 };
 
-extern int blake3_cpu_features;
+int blake3_cpu_features;
+
+void blake3_detect_cpu_features(void) {
+#if defined(__x86_64__)
+  enum { EAX, EBX, ECX, EDX };
+  uint32_t regs[4], xcr0;
+  int features = 0;
+
+  blake3_cpuid(regs, 1, 0);
+  if (regs[ECX] & (1UL << 19))
+    features |= SSE41;
+  // OSXSAVE
+  if (regs[ECX] & (1UL << 27)) {
+    blake3_cpuid(regs, 0, 0);
+    if (regs[EAX] >= 7) {
+      blake3_cpuid(regs, 7, 0);
+      xcr0 = blake3_xgetbv();
+      // AVX2 and XCR0 SSE, AVX
+      if (regs[EBX] & (1UL << 5) && (xcr0 & 0x06) == 0x06)
+        features |= AVX2;
+      // AVX512F, AVX512VL and XCR0 Opmask, ZMM_Hi256, Hi16_ZMM
+      if (regs[EBX] & (1UL << 31 | 1UL << 16) && (xcr0 & 0xe0) == 0xe0)
+        features |= AVX512;
+    }
+  }
+  blake3_cpu_features = features;
+#endif
+}
 #endif
 
 void blake3_compress_in_place(uint32_t cv[8],

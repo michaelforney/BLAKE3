@@ -19,7 +19,7 @@ BLAKE3_OBJ=\
 	blake3_portable.o\
 	$(BLAKE3_OBJ-1)
 BLAKE3_OBJ-$(WITH_ASM)=\
-	blake3_cpu_features.o\
+	blake3_cpuid.o\
 	blake3_avx2_x86-64_unix.o\
 	blake3_avx512_x86-64_unix.o\
 	blake3_sse41_x86-64_unix.o
