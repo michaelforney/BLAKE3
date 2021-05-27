@@ -1,191 +1,234 @@
-# <a href="#"><img src="media/BLAKE3.svg" alt="BLAKE3" height=50></a>
+The official C implementation of BLAKE3.
 
-BLAKE3 is a cryptographic hash function that is:
+# Example
 
-- **Much faster** than MD5, SHA-1, SHA-2, SHA-3, and BLAKE2.
-- **Secure**, unlike MD5 and SHA-1. And secure against length extension,
-  unlike SHA-2.
-- **Highly parallelizable** across any number of threads and SIMD lanes,
-  because it's a Merkle tree on the inside.
-- Capable of **verified streaming** and **incremental updates**, again
-  because it's a Merkle tree.
-- A **PRF**, **MAC**, **KDF**, and **XOF**, as well as a regular hash.
-- **One algorithm with no variants**, which is fast on x86-64 and also
-  on smaller architectures.
+An example program that hashes bytes from standard input and prints the
+result:
 
-The [chart below](https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/benchmarks/bar_chart.py)
-shows BLAKE3's performance on modern server hardware, an Intel Cascade
-Lake-SP 8275CL processor:
+```c
+#include "blake3.h"
+#include <stdio.h>
+#include <unistd.h>
 
-<p align="center">
-<img src="media/speed.svg" alt="performance graph">
-</p>
+int main() {
+  // Initialize the hasher.
+  blake3_hasher hasher;
+  blake3_hasher_init(&hasher);
 
-BLAKE3 is based on an optimized instance of the established hash
-function [BLAKE2](https://blake2.net) and on the [original Bao tree
-mode](https://github.com/oconnor663/bao/blob/master/docs/spec_0.9.1.md).
-The specifications and design rationale are available in the [BLAKE3
-paper](https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.pdf).
-The default output size is 256 bits. The current version of
-[Bao](https://github.com/oconnor663/bao) implements verified streaming
-with BLAKE3.
+  // Read input bytes from stdin.
+  unsigned char buf[65536];
+  ssize_t n;
+  while ((n = read(STDIN_FILENO, buf, sizeof(buf))) > 0) {
+    blake3_hasher_update(&hasher, buf, n);
+  }
 
-This repository is the official implementation of BLAKE3. It includes:
+  // Finalize the hash. BLAKE3_OUT_LEN is the default output length, 32 bytes.
+  uint8_t output[BLAKE3_OUT_LEN];
+  blake3_hasher_finalize(&hasher, output, BLAKE3_OUT_LEN);
 
-* The [`blake3`](https://crates.io/crates/blake3) Rust crate, which
-  includes optimized SIMD implementations for SSE4.1, AVX2, AVX-512, and
-  NEON, with automatic runtime CPU feature detection on x86. The
-  optional `rayon` feature also enables multi-threading.
+  // Print the hash as hexadecimal.
+  for (size_t i = 0; i < BLAKE3_OUT_LEN; i++) {
+    printf("%02x", output[i]);
+  }
+  printf("\n");
+  return 0;
+}
+```
 
-* The [`b3sum`](https://crates.io/crates/b3sum) Rust crate, which
-  provides a command line interface. It uses multi-threading by default,
-  making it an order of magnitude faster than e.g. `sha256sum` on
-  typical desktop hardware.
-
-* The [C implementation](c), which like the Rust implementation includes
-  SIMD code and runtime CPU feature detection on x86. Unlike the Rust
-  implementation, it's not currently multi-threaded. See
-  [`c/README.md`](c/README.md).
-
-* The [reference implementation](reference_impl/reference_impl.rs),
-  which is discussed in Section 5.1 of the [BLAKE3
-  paper](https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.pdf).
-  This implementation is much smaller and simpler than the optimized
-  ones above. If you want to see how BLAKE3 works, or you're writing a
-  port that doesn't need multi-threading or SIMD optimizations, start
-  here.
-
-* A [set of test
-  vectors](https://github.com/BLAKE3-team/BLAKE3/blob/master/test_vectors/test_vectors.json)
-  that covers extended outputs, all three modes, and a variety of input
-  lengths.
-
-* [![Actions Status](https://github.com/BLAKE3-team/BLAKE3/workflows/tests/badge.svg)](https://github.com/BLAKE3-team/BLAKE3/actions)
-
-BLAKE3 was designed by:
-
-* [@oconnor663 ](https://github.com/oconnor663) (Jack O'Connor)
-* [@sneves](https://github.com/sneves) (Samuel Neves)
-* [@veorq](https://github.com/veorq) (Jean-Philippe Aumasson)
-* [@zookozcash](https://github.com/zookozcash) (Zooko)
-
-The development of BLAKE3 was sponsored by
-[Teserakt](https://teserakt.io) and [Electric Coin Company](https://electriccoin.co).
-
-*NOTE: BLAKE3 is not a password hashing algorithm, because it's
-designed to be fast, whereas password hashing should not be fast. If you
-hash passwords to store the hashes or if you derive keys from passwords,
-we recommend [Argon2](https://github.com/P-H-C/phc-winner-argon2).*
-
-## Usage
-
-### The `b3sum` utility
-
-The `b3sum` command line utility prints the BLAKE3 hashes of files or of
-standard input. Prebuilt binaries are available for Linux, Windows, and
-macOS (requiring the [unidentified developer
-workaround](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac))
-on the [releases page](https://github.com/BLAKE3-team/BLAKE3/releases).
-If you've [installed Rust and
-Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html),
-you can also build `b3sum` yourself with:
+If you save the example code above as `example.c`, and you're on x86\_64
+with a Unix-like OS, you can compile a working binary like this:
 
 ```bash
-cargo install b3sum
+gcc -O3 -o example example.c blake3.c blake3_dispatch.c blake3_portable.c \
+    blake3_sse41_x86-64_unix.S blake3_avx2_x86-64_unix.S blake3_avx512_x86-64_unix.S
 ```
 
-If `rustup` didn't configure your `PATH` for you, you might need to go
-looking for the installed binary in e.g. `~/.cargo/bin`. You can test
-out how fast BLAKE3 is on your machine by creating a big file and
-hashing it, for example:
+# API
+
+## The Struct
+
+```c
+typedef struct {
+  // private fields
+} blake3_hasher;
+```
+
+An incremental BLAKE3 hashing state, which can accept any number of
+updates. This implementation doesn't allocate any heap memory, but
+`sizeof(blake3_hasher)` itself is relatively large, currently 1912 bytes
+on x86-64. This size can be reduced by restricting the maximum input
+length, as described in Section 5.4 of [the BLAKE3
+spec](https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.pdf),
+but this implementation doesn't currently support that strategy.
+
+## Common API Functions
+
+```c
+void blake3_hasher_init(
+  blake3_hasher *self);
+```
+
+Initialize a `blake3_hasher` in the default hashing mode.
+
+```c
+void blake3_hasher_update(
+  blake3_hasher *self,
+  const void *input,
+  size_t input_len);
+```
+
+Add input to the hasher. This can be called any number of times.
+
+```c
+void blake3_hasher_finalize(
+  const blake3_hasher *self,
+  uint8_t *out,
+  size_t out_len);
+```
+
+Finalize the hasher and emit an output of any length. This doesn't
+modify the hasher itself, and it's possible to finalize again after
+adding more input. The constant `BLAKE3_OUT_LEN` provides the default
+output length, 32 bytes.
+
+## Less Common API Functions
+
+```c
+void blake3_hasher_init_keyed(
+  blake3_hasher *self,
+  const uint8_t key[BLAKE3_KEY_LEN]);
+```
+
+Initialize a `blake3_hasher` in the keyed hashing mode. The key must be
+exactly 32 bytes.
+
+```c
+void blake3_hasher_init_derive_key(
+  blake3_hasher *self,
+  const char *context);
+```
+
+Initialize a `blake3_hasher` in the key derivation mode. Key material
+should be given as input after initialization, using
+`blake3_hasher_update`. `context` is a standard C string of any length,
+and the terminating null byte is not included. The context string should
+be hardcoded, globally unique, and application-specific. A good default
+format for the context string is `"[application] [commit timestamp]
+[purpose]"`, e.g., `"example.com 2019-12-25 16:18:03 session tokens
+v1"`.
+
+```c
+void blake3_hasher_finalize_seek(
+  const blake3_hasher *self,
+  uint64_t seek,
+  uint8_t *out,
+  size_t out_len);
+```
+
+The same as `blake3_hasher_finalize`, but with an additional `seek`
+parameter for the starting byte position in the output stream. To
+efficiently stream a large output without allocating memory, call this
+function in a loop, incrementing `seek` by the output length each time.
+
+# Building
+
+This implementation is just C and assembly files. It doesn't include a
+public-facing build system. (The `Makefile` in this directory is only
+for testing.) Instead, the intention is that you can include these files
+in whatever build system you're already using. This section describes
+the commands your build system should execute, or which you can execute
+by hand. Note that these steps may change in future versions.
+
+## x86
+
+Dynamic dispatch is enabled by default on x86. The implementation will
+query the CPU at runtime to detect SIMD support, and it will use the
+widest instruction set available. By default, `blake3_dispatch.c`
+expects to be linked with code for four different instruction sets:
+portable C, SSE4.1, AVX2, and AVX-512.
+
+For each of the x86 SIMD instruction sets, two versions are available,
+one in assembly (with three flavors: Unix, Windows MSVC, and Windows
+GNU) and one using C intrinsics. The assembly versions are generally
+preferred: they perform better, they perform more consistently across
+different compilers, and they build more quickly. On the other hand, the
+assembly versions are x86\_64-only, and you need to select the right
+flavor for your target platform.
+
+Here's an example of building a shared library on x86\_64 Linux using
+the assembly implementations:
 
 ```bash
-# Create a 1 GB file.
-head -c 1000000000 /dev/zero > /tmp/bigfile
-# Hash it with SHA-256.
-time openssl sha256 /tmp/bigfile
-# Hash it with BLAKE3.
-time b3sum /tmp/bigfile
+gcc -shared -O3 -o libblake3.so blake3.c blake3_dispatch.c blake3_portable.c \
+    blake3_sse41_x86-64_unix.S blake3_avx2_x86-64_unix.S blake3_avx512_x86-64_unix.S
 ```
 
-### The `blake3` crate
+When building the intrinsics-based implementations, you need to build
+each implementation separately, with the corresponding instruction set
+explicitly enabled in the compiler. Here's the same shared library using
+the intrinsics-based implementations:
 
-To use BLAKE3 from Rust code, add a dependency on the `blake3` crate to
-your `Cargo.toml`. Here's an example of hashing some input bytes:
-
-```rust
-// Hash an input all at once.
-let hash1 = blake3::hash(b"foobarbaz");
-
-// Hash an input incrementally.
-let mut hasher = blake3::Hasher::new();
-hasher.update(b"foo");
-hasher.update(b"bar");
-hasher.update(b"baz");
-let hash2 = hasher.finalize();
-assert_eq!(hash1, hash2);
-
-// Extended output. OutputReader also implements Read and Seek.
-let mut output = [0; 1000];
-let mut output_reader = hasher.finalize_xof();
-output_reader.fill(&mut output);
-assert_eq!(&output[..32], hash1.as_bytes());
+```bash
+gcc -c -fPIC -O3 -msse4.1 blake3_sse41.c -o blake3_sse41.o
+gcc -c -fPIC -O3 -mavx2 blake3_avx2.c -o blake3_avx2.o
+gcc -c -fPIC -O3 -mavx512f -mavx512vl blake3_avx512.c -o blake3_avx512.o
+gcc -shared -O3 -o libblake3.so blake3.c blake3_dispatch.c blake3_portable.c \
+    blake3_avx2.o blake3_avx512.o blake3_sse41.o
 ```
 
-Besides `hash`, BLAKE3 provides two other modes, `keyed_hash` and
-`derive_key`. The `keyed_hash` mode takes a 256-bit key:
+Note above that building `blake3_avx512.c` requires both `-mavx512f` and
+`-mavx512vl` under GCC and Clang, as shown above. Under MSVC, the single
+`/arch:AVX512` flag is sufficient. The MSVC equivalent of `-mavx2` is
+`/arch:AVX2`. MSVC enables SSE4.1 by defaut, and it doesn't have a
+corresponding flag.
 
-```rust
-// MAC an input all at once.
-let example_key = [42u8; 32];
-let mac1 = blake3::keyed_hash(&example_key, b"example input");
+If you want to omit SIMD code on x86, you need to explicitly disable
+each instruction set. Here's an example of building a shared library on
+x86 with only portable code:
 
-// MAC incrementally.
-let mut hasher = blake3::Hasher::new_keyed(&example_key);
-hasher.update(b"example input");
-let mac2 = hasher.finalize();
-assert_eq!(mac1, mac2);
+```bash
+gcc -shared -O3 -o libblake3.so -DBLAKE3_NO_SSE41 -DBLAKE3_NO_AVX2 -DBLAKE3_NO_AVX512 \
+    blake3.c blake3_dispatch.c blake3_portable.c
 ```
 
-The `derive_key` mode takes a context string of any length and key
-material of any length, and it outputs a derived key of any length. The
-context string should be hardcoded, globally unique, and
-application-specific. A good default format for the context string is
-`"[application] [commit timestamp] [purpose]"`:
+## ARM NEON
 
-```rust
-// Derive a couple of subkeys for different purposes.
-const EMAIL_CONTEXT: &str = "BLAKE3 example 2020-01-07 17:10:44 email key";
-const API_CONTEXT: &str = "BLAKE3 example 2020-01-07 17:11:21 API key";
-let input_key = b"some very secret key material (>'-')> <('-'<) ^('-')^";
-let mut email_key = [0; 32];
-blake3::derive_key(EMAIL_CONTEXT, input_key, &mut email_key);
-let mut api_key = [0; 32];
-blake3::derive_key(API_CONTEXT, input_key, &mut api_key);
-assert!(email_key != api_key);
+The NEON implementation is not enabled by default on ARM, since not all
+ARM targets support it. To enable it, set `BLAKE3_USE_NEON=1`. Here's an
+example of building a shared library on ARM Linux with NEON support:
+
+```bash
+gcc -shared -O3 -o libblake3.so -DBLAKE3_USE_NEON blake3.c blake3_dispatch.c \
+    blake3_portable.c blake3_neon.c
 ```
 
-### The C implementation
+Note that on some targets (ARMv7 in particular), extra flags may be
+required to activate NEON support in the compiler. If you see an error
+like...
 
-See [`c/README.md`](c/README.md).
+```
+/usr/lib/gcc/armv7l-unknown-linux-gnueabihf/9.2.0/include/arm_neon.h:635:1: error: inlining failed
+in call to always_inline ‘vaddq_u32’: target specific option mismatch
+```
 
-### Other implementations
+...then you may need to add something like `-mfpu=neon-vfpv4
+-mfloat-abi=hard`.
 
-We post links to third-party bindings and implementations on the
-[@BLAKE3team Twitter account](https://twitter.com/BLAKE3team) whenever
-we hear about them. Some highlights include [an optimized Go
-implementation](https://github.com/zeebo/blake3), [Wasm bindings for
-Node.js and browsers](https://github.com/connor4312/blake3), and [binary
-wheels for Python](https://github.com/oconnor663/blake3-py).
+## Other Platforms
 
-## Contributing
+The portable implementation should work on most other architectures. For
+example:
 
-Please see [CONTRIBUTING.md](CONTRIBUTING.md).
+```bash
+gcc -shared -O3 -o libblake3.so blake3.c blake3_dispatch.c blake3_portable.c
+```
 
-## Intellectual property
+# Differences from the Rust Implementation
 
-The Rust code is copyright Jack O'Connor, 2019-2020. 
-The C code is copyright Samuel Neves and Jack O'Connor, 2019-2020.
+The single-threaded Rust and C implementations use the same algorithms,
+and their performance is the same if you use the assembly
+implementations or if you compile the intrinsics-based implementations
+with Clang. (Both Clang and rustc are LLVM-based.)
 
-This work is released into the public domain with CC0 1.0.
-Alternatively, it is licensed under the Apache License 2.0.
+The C implementation doesn't currently support multi-threading. OpenMP
+support or similar might be added in the future.

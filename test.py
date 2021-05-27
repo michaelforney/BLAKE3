@@ -6,7 +6,7 @@ from os import path
 import subprocess
 
 HERE = path.dirname(__file__)
-TEST_VECTORS_PATH = path.join(HERE, "..", "test_vectors", "test_vectors.json")
+TEST_VECTORS_PATH = path.join(HERE, "test_vectors.json")
 TEST_VECTORS = json.load(open(TEST_VECTORS_PATH))
 TEST_CONTEXT = "BLAKE3 2019-12-27 16:29:52 test vectors context"
 
