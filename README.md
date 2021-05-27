@@ -3,7 +3,7 @@
 A C implementation of the `b3sum` tool, as well as a reusable library
 `libblake3.a`. Based on the official [C implementation of BLAKE3].
 
-[C implementation]: https://github.com/BLAKE3-team/BLAKE3/tree/master/c
+[C implementation of BLAKE3]: https://github.com/BLAKE3-team/BLAKE3/tree/master/c
 
 ## Example
 
