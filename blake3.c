@@ -373,7 +373,7 @@ INLINE void compress_subtree_to_parent_node(
     uint64_t chunk_counter, uint8_t flags, uint8_t out[2 * BLAKE3_OUT_LEN]) {
   assert(input_len > BLAKE3_CHUNK_LEN);
 
-  uint8_t cv_array[2 * MAX_SIMD_DEGREE_OR_2 * BLAKE3_OUT_LEN];
+  uint8_t cv_array[MAX_SIMD_DEGREE_OR_2 * BLAKE3_OUT_LEN];
   size_t num_cvs = blake3_compress_subtree_wide(input, input_len, key,
                                                 chunk_counter, flags, cv_array);
 
