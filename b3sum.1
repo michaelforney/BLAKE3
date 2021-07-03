@@ -1,0 +1,39 @@
+.Dd Jul 03, 2021
+.Dt b3sum 1
+.Sh NAME
+.Nm b3sum
+.Nd compute or check BLAKE3 message digests
+.Sh SYNOPSIS
+.Nm
+.Op Fl bct
+.Op Fl l Ar length
+.Op Ar file...
+.Sh DESCRIPTION
+.Nm
+writes BLAKE3 checksums of each
+.Ar file
+to stdout. If no
+.Ar file
+is given
+.Nm
+reads from the standard input.
+.Sh OPTIONS
+.Bl -tag
+.It Fl c
+Read a list of BLAKE3 checksums from each
+.Ar file
+and check them. If no
+.Ar file
+is given,
+.Nm
+reads from stdin.
+.It Fl b
+Read in binary mode.
+.It Fl t
+Read in text mode (default).
+.It Fl l
+The
+.Ar length
+in bytes
+of the computed checksum (default 32).
+.El

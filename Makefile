@@ -4,6 +4,7 @@ WITH_ASM=1
 
 PREFIX?=/usr/local
 BINDIR?=$(PREFIX)/bin
+MANDIR?=$(PREFIX)/share/man
 LIBDIR?=$(PREFIX)/lib
 INCDIR?=$(PREFIX)/include
 ARFLAGS=cr
@@ -42,8 +43,9 @@ b3sum: b3sum.o libblake3.a
 
 .PHONY: install
 install: b3sum libblake3.a
-	mkdir -p $(DESTDIR)$(BINDIR) $(DESTDIR)$(LIBDIR) $(DESTDIR)$(INCDIR)
+	mkdir -p $(DESTDIR)$(BINDIR) $(DESTDIR)$(MANDIR) $(DESTDIR)$(LIBDIR) $(DESTDIR)$(INCDIR)
 	cp b3sum $(DESTDIR)$(BINDIR)
+	cp b3sum.1 $(DESTDIR)$(MANDIR)
 	cp libblake3.a $(DESTDIR)$(LIBDIR)
 	cp blake3.h $(DESTDIR)$(INCDIR)
 
