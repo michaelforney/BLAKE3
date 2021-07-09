@@ -20,7 +20,7 @@ blake3_xgetbv:
 	xgetbv
 	ret
 
-.section .ctors,"aw"
+.section .init_array,"aw"
 .align	8
 .quad	blake3_detect_cpu_features
 #endif
