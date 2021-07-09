@@ -43,9 +43,9 @@ b3sum: b3sum.o libblake3.a
 
 .PHONY: install
 install: b3sum libblake3.a
-	mkdir -p $(DESTDIR)$(BINDIR) $(DESTDIR)$(MANDIR) $(DESTDIR)$(LIBDIR) $(DESTDIR)$(INCDIR)
+	mkdir -p $(DESTDIR)$(BINDIR) $(DESTDIR)$(MANDIR)/man1 $(DESTDIR)$(LIBDIR) $(DESTDIR)$(INCDIR)
 	cp b3sum $(DESTDIR)$(BINDIR)
-	cp b3sum.1 $(DESTDIR)$(MANDIR)
+	cp b3sum.1 $(DESTDIR)$(MANDIR)/man1
 	cp libblake3.a $(DESTDIR)$(LIBDIR)
 	cp blake3.h $(DESTDIR)$(INCDIR)
 
