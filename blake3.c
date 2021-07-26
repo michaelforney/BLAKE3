@@ -26,6 +26,8 @@ enum blake3_flags {
   DERIVE_KEY_MATERIAL = 1 << 6,
 };
 
+const char *blake3_version(void) { return BLAKE3_VERSION_STRING; }
+
 INLINE void chunk_state_init(blake3_chunk_state *self, const uint32_t key[8],
                              uint8_t flags) {
   memcpy(self->cv, key, BLAKE3_KEY_LEN);
