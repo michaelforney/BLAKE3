@@ -23,4 +23,5 @@ blake3_xgetbv:
 .section .init_array,"aw"
 .align	8
 .quad	blake3_detect_cpu_features
+.section .note.GNU-stack,"",@progbits
 #endif
